@@ -278,14 +278,32 @@ const Tetris3D = () => {
           />
         </Physics>
       </Canvas>
-      {isPortrait && (
-        <div style={{ position: "absolute", bottom: "20px", left: "20px", display: "flex", flexDirection: "column", gap: "10px" }}>
-          <button onClick={moveLeft} style={{ width: "50px", height: "50px" }}>←</button>
-          <button onClick={moveRight} style={{ width: "50px", height: "50px" }}>→</button>
-          <button onClick={moveForward} style={{ width: "50px", height: "50px" }}>↑</button>
-          <button onClick={moveBackward} style={{ width: "50px", height: "50px" }}>↓</button>
-        </div>
-      )}
+        {isPortrait && (
+          <div
+            style={{
+              position: "absolute",
+              bottom: "20px",
+              left: "20px",
+              display: "grid",
+              gridTemplateColumns: "50px 50px 50px",
+              gridTemplateRows: "50px 50px 50px",
+              gap: "10px",
+              alignItems: "center",
+              justifyItems: "center",
+            }}
+           >
+    <div></div>
+    <button onClick={moveForward} style={{ width: "50px", height: "50px" }}>↑</button>
+    <div></div>
+    <button onClick={moveLeft} style={{ width: "50px", height: "50px" }}>←</button>
+    <div></div>
+    <button onClick={moveRight} style={{ width: "50px", height: "50px" }}>→</button>
+    <div></div>
+    <button onClick={moveBackward} style={{ width: "50px", height: "50px" }}>↓</button>
+    <div></div>
+  </div>
+)}
+
       {isPortrait && (
         <button onClick={dropPiece} style={{ position: "absolute", bottom: "20px", right: "20px", width: "50px", height: "50px" }}>⏬</button>
       )}
