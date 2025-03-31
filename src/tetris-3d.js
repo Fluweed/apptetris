@@ -1,4 +1,4 @@
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, InstancedMesh } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { Physics, RigidBody } from "@react-three/rapier";
 import { useState, useEffect, useRef } from "react";
@@ -7,7 +7,7 @@ import * as THREE from "three";
 const GRID_WIDTH = 12;
 const GRID_DEPTH = 12;
 const CUBE_SIZE = 1;
-const FALL_SPEED = 0.04;
+const FALL_SPEED = 0.2;
 
 const colors = ["#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF", "#00FFFF"];
 
@@ -254,6 +254,10 @@ const Tetris3D = () => {
     }
   }, [score]);
 
+  useEffect(() => {
+    setCubes((prevCubes) => prevCubes.filter(cube => cube.position[1] > -20));
+  }, [cubes]);
+
   return (
     <div style={{ display: "flex", flexDirection: isPortrait ? "column" : "row", alignItems: "center", justifyContent: "center", height: "100vh", background: "black" }}>
       <div style={{ color: "white", marginBottom: isPortrait ? "20px" : "0", marginRight: isPortrait ? "0" : "20px" }}>
@@ -261,8 +265,8 @@ const Tetris3D = () => {
         <h1>High Score: {highScore}</h1>
       </div>
       <Canvas camera={{ position: [GRID_WIDTH / 2, 10, GRID_DEPTH / 2 + 15], fov: 70 }}>
-        <ambientLight intensity={0.5} />
-        <directionalLight position={[5, 10, 5]} intensity={1} />
+        <ambientLight intensity={0.3} />
+        <directionalLight position={[5, 10, 5]} intensity={0.8} castShadow={false} />
         <OrbitControls enablePan={false} enableZoom={false} target={[GRID_WIDTH / 2, -5, GRID_DEPTH / 2]} />
         <Physics gravity={[0, 0, 0]}>
           <GameContent 
@@ -314,33 +318,36 @@ const Tetris3D = () => {
 const GameContent = ({ cubes, currentPiece, position, setCubes, setCurrentPiece, setPosition, checkForMatches, removeMatches, setScore }) => {
   const currentPieceRef = useRef();
   
-  useFrame(() => {
+  useFrame((state, delta) => {
     if (currentPiece) {
-      setPosition((pos) => {
-        const newY = pos[1] - FALL_SPEED;
-        return [pos[0], newY, pos[2]];
-      });
+      const timeStep = 0.1; // Atualiza a cada 0.1 segundos
+      if (state.clock.elapsedTime % timeStep < delta) {
+        setPosition((pos) => {
+          const newY = pos[1] - FALL_SPEED;
+          return [pos[0], newY, pos[2]];
+        });
 
-      const hasCollision = currentPiece.some(({ position: [x, y] }) =>
-        cubes.some(cube =>
-          Math.abs(cube.position[0] - (position[0] + x * CUBE_SIZE)) < CUBE_SIZE &&
-          Math.abs(cube.position[1] - (position[1] + y * CUBE_SIZE)) < CUBE_SIZE &&
-          Math.abs(cube.position[2] - position[2]) < CUBE_SIZE
-        )
-      );
+        const hasCollision = currentPiece.some(({ position: [x, y] }) =>
+          cubes.some(cube =>
+            Math.abs(cube.position[0] - (position[0] + x * CUBE_SIZE)) < CUBE_SIZE &&
+            Math.abs(cube.position[1] - (position[1] + y * CUBE_SIZE)) < CUBE_SIZE &&
+            Math.abs(cube.position[2] - position[2]) < CUBE_SIZE
+          )
+        );
 
-      if (position[1] <= -9.5 || hasCollision) {
-        const newCubes = currentPiece.map(({ position: [x, y], color }) => ({
-          position: [position[0] + x * CUBE_SIZE, position[1] + y * CUBE_SIZE, position[2]],
-          color,
-        }));
-        setCubes((prev) => [...prev, ...newCubes]);
-        const matches = checkForMatches([...cubes, ...newCubes]);
-        if (matches.length > 0) {
-          removeMatches(matches);
+        if (position[1] <= -9.5 || hasCollision) {
+          const newCubes = currentPiece.map(({ position: [x, y], color }) => ({
+            position: [position[0] + x * CUBE_SIZE, position[1] + y * CUBE_SIZE, position[2]],
+            color,
+          }));
+          setCubes((prev) => [...prev, ...newCubes]);
+          const matches = checkForMatches([...cubes, ...newCubes]);
+          if (matches.length > 0) {
+            removeMatches(matches);
+          }
+          setCurrentPiece(null);
+          setPosition([GRID_WIDTH / 2 - CUBE_SIZE / 2, 10, GRID_DEPTH / 2 - CUBE_SIZE / 2]);
         }
-        setCurrentPiece(null);
-        setPosition([GRID_WIDTH / 2 - CUBE_SIZE / 2, 10, GRID_DEPTH / 2 - CUBE_SIZE / 2]);
       }
     } else {
       setCurrentPiece(getRandomPiece());
@@ -365,18 +372,7 @@ const GameContent = ({ cubes, currentPiece, position, setCubes, setCurrentPiece,
           <meshStandardMaterial color="white" />
         </mesh>
       </RigidBody>
-      {cubes.map((cube, index) => (
-        <RigidBody key={index} type="fixed" position={cube.position}>
-          <mesh>
-            <boxGeometry args={[CUBE_SIZE, CUBE_SIZE, CUBE_SIZE]} />
-            <meshStandardMaterial color={cube.color} />
-            <lineSegments>
-              <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(CUBE_SIZE, CUBE_SIZE, CUBE_SIZE)]} />
-              <lineBasicMaterial attach="material" color="cyan" linewidth={2} />
-            </lineSegments>
-          </mesh>
-        </RigidBody>
-      ))}
+      <InstancedCubes cubes={cubes} />
       {currentPiece && currentPiece.map(({ position: [x, y], color }, index) => (
         <RigidBody key={index} ref={currentPieceRef} type="dynamic" position={[position[0] + x * CUBE_SIZE, position[1] + y * CUBE_SIZE, position[2]]}>
           <mesh>
@@ -390,6 +386,26 @@ const GameContent = ({ cubes, currentPiece, position, setCubes, setCurrentPiece,
         </RigidBody>
       ))}
     </>
+  );
+};
+
+const InstancedCubes = ({ cubes }) => {
+  const meshRef = useRef();
+  useEffect(() => {
+    cubes.forEach((cube, i) => {
+      const { position, color } = cube;
+      const matrix = new THREE.Matrix4().setPosition(...position);
+      meshRef.current.setMatrixAt(i, matrix);
+      meshRef.current.setColorAt(i, new THREE.Color(color));
+    });
+    meshRef.current.instanceMatrix.needsUpdate = true;
+  }, [cubes]);
+
+  return (
+    <instancedMesh ref={meshRef} args={[null, null, cubes.length]}>
+      <boxGeometry args={[CUBE_SIZE, CUBE_SIZE, CUBE_SIZE]} />
+      <meshStandardMaterial />
+    </instancedMesh>
   );
 };
 
